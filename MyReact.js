@@ -8,14 +8,16 @@ export function useState(initialState) {
   globalId++
   return (() => {
     console.log('component', componentState.get(parent))
-    const { cache, props, component } = componentState.get(parent)
+    const { cache } = componentState.get(parent)
     if (cache[id] == null) {
       cache[id] = {
         value:
           typeof initialState === 'function' ? initialState() : initialState,
       }
     }
+
     const setState = (state) => {
+      const { props, component } = componentState.get(parent)
       if (typeof state === 'function') {
         cache[id].value = state(cache[id].value)
       } else {
@@ -24,6 +26,32 @@ export function useState(initialState) {
       render(component, props, parent)
     }
     return [cache[id].value, setState]
+  })()
+}
+
+export function useEffect(callback, dependencies) {
+  const id = globalId
+  const parent = globalParent
+  globalId++
+  ;(() => {
+    console.log('component', componentState.get(parent))
+    const { cache } = componentState.get(parent)
+    if (cache[id] == null) {
+      cache[id] = { dependencies: undefined }
+    }
+    const dependenciesChanged =
+      dependencies == null ||
+      dependencies.some((dependency, i) => {
+        return (
+          cache[id].dependencies == null ||
+          cache[id].dependencies[i] !== dependency
+        )
+      })
+    if (dependenciesChanged) {
+      if (cache[id].cleanup != null) cache[id].cleanup()
+      cache[id].cleanup = callback()
+      cache[id].dependencies = dependencies
+    }
   })()
 }
 
